@@ -185,7 +185,7 @@ AC_SEARCH_LIBS([inet_addr], [nsl])
 AC_SEARCH_LIBS([clock_gettime], [rt])
 
 # Checks for header files.
-AC_CHECK_HEADERS(m4_normalize([
+AC_CHECK_HEADERS(
   fcntl.h
   langinfo.h
   limits.h
@@ -205,8 +205,7 @@ AC_CHECK_HEADERS(m4_normalize([
   termios.h
   unistd.h
   wchar.h
-  wctype.h
-  ]), [], [AC_MSG_ERROR([Missing required header file.])])
+  wctype.h, [], [AC_MSG_ERROR([Missing required header file.])])
 
 AC_CHECK_HEADERS([pty.h util.h libutil.h paths.h])
 AC_CHECK_HEADERS([endian.h sys/endian.h])
@@ -234,7 +233,7 @@ AC_TYPE_UINTPTR_T
 # Checks for library functions.
 AC_FUNC_FORK
 AC_FUNC_MBRTOWC
-AC_CHECK_FUNCS(m4_normalize([
+AC_CHECK_FUNCS(
   gettimeofday
   setrlimit
   iswprint
@@ -257,8 +256,7 @@ AC_CHECK_FUNCS(m4_normalize([
   pselect
   getaddrinfo
   getnameinfo
-  pledge
-  ]))
+  pledge)
 
 # Start by trying to find the needed tinfo parts by pkg-config
 PKG_CHECK_MODULES([TINFO], [tinfo],
