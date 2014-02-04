@@ -73,6 +73,10 @@ my $use_remote_ip = 'proxy';
 
 my $family = 'prefer-inet';
 my $port_request = undef;
+my %port_setting = (
+    firewall_port => 0,
+    server_port => 0,
+    port_range => 0 );
 
 my @ssh = ('ssh');
 
@@ -107,8 +111,8 @@ qq{Usage: $0 [options] [--] [user@]host [command...]
         --family=all         try all network types
         --family=prefer-inet use all network types, but try IPv4 first [default]
         --family=prefer-inet6 use all network types, but try IPv6 first
--p PORT[:PORT2]
-        --port=PORT[:PORT2]  server-side UDP port or range
+-p [PORT/]PORT[:PORT2]
+        --port=[PORT/]PORT[:PORT2]  server-side UDP port or range
                                 (No effect on server-side SSH port)
         --bind-server={ssh|any|IP}  ask the server to reply from an IP address
                                        (default: "ssh")
@@ -210,12 +214,14 @@ if ( $overwrite ) {
 }
 
 if ( defined $port_request ) {
-  if ( $port_request =~ m{^(\d+)(:(\d+))?$} ) {
-    my ( $low, $clause, $high ) = ( $1, $2, $3 );
+  if ( $port_request =~ m{^((\d+)/)?(\d+)(:(\d+))?$} ) {
+    my ( $firewall, $nat, $low, $clause, $high ) = ( $1, $2, $3, $4, $5 );
     # good port or port-range
     if ( $low < 0 or $low > 65535 ) {
       die "$0: Server-side (low) port ($low) must be within valid range [0..65535].\n";
     }
+    $port_setting{server_port} = $low;
+    $port_setting{firewall_port} = $low;
     if ( defined $high ) {
       if ( $high <= 0 or $high > 65535 ) {
 	die "$0: Server-side high port ($high) must be within valid range [1..65535].\n";
@@ -226,7 +232,18 @@ if ( defined $port_request ) {
       if ( $low > $high ) {
 	die "$0: Server-side port range ($port_request): low port greater than high port.\n";
       }
+      $port_setting{port_range} = $high - $low;
     }
+    if ( defined $nat ) {
+      if ( $nat <= 0 or $nat > 65535 ) {
+        die "$0: Firewall port ($nat) must be within valid range [1..65535].\n";
+      }
+      if ( 65535 - $nat < $port_setting{port_range} ) {
+        die "$0: Firewall port ($nat): insufficient range from low port to high port.\n";
+      }
+      $port_setting{firewall_port} = $nat;
+    }
+    $port_request = defined $high ? "$low:$high" : "$low";
   } else {
     die "$0: Server-side port or range ($port_request) is not valid.\n";
   }
@@ -461,6 +478,10 @@ if ( $pid == 0 ) { # child
   $ENV{ 'MOSH_KEY' } = $key;
   $ENV{ 'MOSH_PREDICTION_DISPLAY' } = $predict;
   $ENV{ 'MOSH_NO_TERM_INIT' } = '1' if !$term_init;
+
+  $port = $port - $port_setting{server_port} + $port_setting{firewall_port}
+    if (defined $port_request);
+
   exec {$client} ("$client", "-# @cmdline |", $ip, $port);
 }
 
