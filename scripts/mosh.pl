@@ -435,8 +435,8 @@ $|=1;
 
 my $configFile = ConfigFile->new([ '~', '.mosh', 'config' ]);
 
-my $client = 'mosh-client';
-my $server = 'mosh-server';
+my $client = undef;
+my $server = undef;
 
 my $predict = undef;
 
@@ -444,22 +444,23 @@ my $overwrite = 0;
 
 my $bind_ip = undef;
 
-my $use_remote_ip = 'proxy';
+my $use_remote_ip = undef;
 
-my $family = 'prefer-inet';
+my $family = undef;
+
 my $port_request = undef;
 my %port_setting = (
     firewall_port => 0,
     server_port => 0,
     port_range => 0 );
 
-my @ssh = ('ssh');
+my @ssh = ();
 
-my $term_init = 1;
+my $term_init = undef;
 
 my $localhost = undef;
 
-my $ssh_pty = 1;
+my $ssh_pty = undef;
 
 my $help = undef;
 my $version = undef;
@@ -629,6 +630,14 @@ if ( scalar @ARGV < 1 ) {
 my @bind_arguments;
 my $userhost = shift;
 my @command = @ARGV;
+
+$client = 'mosh-client' unless defined($client);
+$server = 'mosh-server' unless defined($server);
+@ssh = ('ssh') unless @ssh;
+$term_init = 1 unless defined($term_init);
+$ssh_pty = 1 unless defined($ssh_pty);
+$family = 'prefer-inet' unless defined($family);
+$use_remote_ip = 'proxy' unless defined($use_remote_ip);
 
 if ( defined $predict ) {
   predict_check( $predict, 0 );
