@@ -622,6 +622,14 @@ if ( defined $fake_proxy ) {
   exit;
 }
 
+if ( scalar @ARGV < 1 ) {
+  die $usage;
+}
+
+my @bind_arguments;
+my $userhost = shift;
+my @command = @ARGV;
+
 if ( defined $predict ) {
   predict_check( $predict, 0 );
 } elsif ( defined $ENV{ 'MOSH_PREDICTION_DISPLAY' } ) {
@@ -688,16 +696,7 @@ if ( defined $port_request ) {
 
 delete $ENV{ 'MOSH_PREDICTION_DISPLAY' };
 
-my $userhost;
-my @command;
-my @bind_arguments;
-
 {
-  if ( scalar @ARGV < 1 ) {
-    die $usage;
-  }
-  $userhost = shift;
-  @command = @ARGV;
   if ( not defined $bind_ip or $bind_ip =~ m{^ssh$}i ) {
     if ( not defined $localhost ) {
       push @bind_arguments, '-s';
