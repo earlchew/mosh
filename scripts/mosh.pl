@@ -463,6 +463,7 @@ my $ssh_pty = 1;
 
 my $help = undef;
 my $version = undef;
+my $unittest = undef;
 
 my @cmdline = @ARGV;
 
@@ -547,9 +548,16 @@ GetOptions( 'client=s' => \$client,
 	    'local' => \$localhost,
 	    'help' => \$help,
 	    'version' => \$version,
+            'test' => \$unittest,
 	    'fake-proxy!' => \my $fake_proxy,
 	    'bind-server=s' => \$bind_ip,
 	    'experimental-remote-ip=s' => \$use_remote_ip) or die $usage;
+
+if ( defined $unittest ) {
+  $configFile->testSplitLine();
+  $configFile->testConfigFile();
+  exit(0);
+}
 
 if ( defined $help ) {
     print $usage;
