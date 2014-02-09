@@ -563,73 +563,6 @@ if ( defined $version ) {
     exit;
 }
 
-if ( defined $predict ) {
-  predict_check( $predict, 0 );
-} elsif ( defined $ENV{ 'MOSH_PREDICTION_DISPLAY' } ) {
-  $predict = $ENV{ 'MOSH_PREDICTION_DISPLAY' };
-  predict_check( $predict, 1 );
-} else {
-  $predict = 'adaptive';
-  predict_check( $predict, 0 );
-}
-
-if ( not grep { $_ eq $use_remote_ip } qw { local remote proxy } ) {
-  die "Unknown parameter $use_remote_ip";
-}
-
-$family = lc( $family );
-# Handle IPv4-only Perl installs.
-if (!$have_ipv6) {
-  # Report failure if IPv6 needed and not available.
-  if (defined($family) && $family eq "inet6") {
-    die "$0: IPv6 sockets not available in this Perl install\n";
-  }
-  # Force IPv4.
-  $family = "inet";
-}
-
-if ( defined $port_request ) {
-  if ( $port_request =~ m{^((\d+)/)?(\d+)(:(\d+))?$} ) {
-    my ( $firewall, $nat, $low, $clause, $high ) = ( $1, $2, $3, $4, $5 );
-    # good port or port-range
-    if ( $low < 0 or $low > 65535 ) {
-      die "$0: Server-side (low) port ($low) must be within valid range [0..65535].\n";
-    }
-    $port_setting{server_port} = $low;
-    $port_setting{firewall_port} = $low;
-    if ( defined $high ) {
-      if ( $high <= 0 or $high > 65535 ) {
-	die "$0: Server-side high port ($high) must be within valid range [1..65535].\n";
-      }
-      if ( $low == 0 ) {
-	die "$0: Server-side port ranges may not be used with starting port 0 ($port_request).\n";
-      }
-      if ( $low > $high ) {
-	die "$0: Server-side port range ($port_request): low port greater than high port.\n";
-      }
-      $port_setting{port_range} = $high - $low;
-    }
-    if ( defined $nat ) {
-      if ( $nat <= 0 or $nat > 65535 ) {
-        die "$0: Firewall port ($nat) must be within valid range [1..65535].\n";
-      }
-      if ( 65535 - $nat < $port_setting{port_range} ) {
-        die "$0: Firewall port ($nat): insufficient range from low port to high port.\n";
-      }
-      $port_setting{firewall_port} = $nat;
-    }
-    $port_request = defined $high ? "$low:$high" : "$low";
-  } else {
-    die "$0: Server-side port or range ($port_request) is not valid.\n";
-  }
-}
-
-delete $ENV{ 'MOSH_PREDICTION_DISPLAY' };
-
-my $userhost;
-my @command;
-my @bind_arguments;
-
 if ( ! defined $fake_proxy ) {
   if ( scalar @ARGV < 1 ) {
     die $usage;
@@ -700,6 +633,92 @@ if ( ! defined $fake_proxy ) {
   waitpid $pid, 0;
   exit;
 }
+
+if ( defined $predict ) {
+  predict_check( $predict, 0 );
+} elsif ( defined $ENV{ 'MOSH_PREDICTION_DISPLAY' } ) {
+  $predict = $ENV{ 'MOSH_PREDICTION_DISPLAY' };
+  predict_check( $predict, 1 );
+} else {
+  $predict = 'adaptive';
+  predict_check( $predict, 0 );
+}
+
+if ( not grep { $_ eq $use_remote_ip } qw { local remote proxy } ) {
+  die "Unknown parameter $use_remote_ip";
+}
+
+$family = lc( $family );
+# Handle IPv4-only Perl installs.
+if (!$have_ipv6) {
+  # Report failure if IPv6 needed and not available.
+  if (defined($family) && $family eq "inet6") {
+    die "$0: IPv6 sockets not available in this Perl install\n";
+  }
+  # Force IPv4.
+  $family = "inet";
+}
+
+if ( defined $port_request ) {
+  if ( $port_request =~ m{^((\d+)/)?(\d+)(:(\d+))?$} ) {
+    my ( $firewall, $nat, $low, $clause, $high ) = ( $1, $2, $3, $4, $5 );
+    # good port or port-range
+    if ( $low < 0 or $low > 65535 ) {
+      die "$0: Server-side (low) port ($low) must be within valid range [0..65535].\n";
+    }
+    $port_setting{server_port} = $low;
+    $port_setting{firewall_port} = $low;
+    if ( defined $high ) {
+      if ( $high <= 0 or $high > 65535 ) {
+	die "$0: Server-side high port ($high) must be within valid range [1..65535].\n";
+      }
+      if ( $low == 0 ) {
+	die "$0: Server-side port ranges may not be used with starting port 0 ($port_request).\n";
+      }
+      if ( $low > $high ) {
+	die "$0: Server-side port range ($port_request): low port greater than high port.\n";
+      }
+      $port_setting{port_range} = $high - $low;
+    }
+    if ( defined $nat ) {
+      if ( $nat <= 0 or $nat > 65535 ) {
+        die "$0: Firewall port ($nat) must be within valid range [1..65535].\n";
+      }
+      if ( 65535 - $nat < $port_setting{port_range} ) {
+        die "$0: Firewall port ($nat): insufficient range from low port to high port.\n";
+      }
+      $port_setting{firewall_port} = $nat;
+    }
+    $port_request = defined $high ? "$low:$high" : "$low";
+  } else {
+    die "$0: Server-side port or range ($port_request) is not valid.\n";
+  }
+}
+
+delete $ENV{ 'MOSH_PREDICTION_DISPLAY' };
+
+my $userhost;
+my @command;
+my @bind_arguments;
+
+if ( not defined $bind_ip or $bind_ip =~ m{^ssh$}i ) {
+  push @bind_arguments, '-s';
+} elsif ( $bind_ip =~ m{^any$}i ) {
+  # do nothing
+} elsif ( $bind_ip =~ m{^[0-9\.]+$} ) {
+  push @bind_arguments, ('-i', "$bind_ip");
+} else {
+  print STDERR qq{$0: Unknown server binding option: $bind_ip\n};
+
+  die $usage;
+}
+
+if ( scalar @ARGV < 1 ) {
+  die $usage;
+}
+
+my $userhost = shift;
+my @command = @ARGV;
 
 # Count colors
 open COLORCOUNT, '-|', $client, ('-c') or die "Can't count colors: $!\n";
