@@ -6,8 +6,9 @@ Reference: https://github.com/keithw/mosh/issues/295
 ### Design Goals
 
 * The existing mosh functionality shall be preserved.
-* Multiple mosh sessions for a single user shall be supported on a single external UDP port.
-* Multiple mosh sessions for multiple users shall be supported on a common single external UDP port.
+* An unprivileged user running multiple mosh sessions on a single unshared unprivileged external UDP port shall be supported.
+* Multiple mosh sessions for a single user on a common single system-wide privileged external UDP port shall be supported.
+* Multiple mosh sessions for multiple users on a common single system-wide privileged external UDP port shall be supported.
 
 ### Candidate Design Requirements
 
@@ -44,6 +45,16 @@ Reference: https://github.com/keithw/mosh/issues/295
 * When moshd receives a packet from the SOCK_STREAM UNIX socket, moshd shall prepend the Session Token and send the resuting packet to the recorded mosh-client address, or drop the packet if no mosh-client address is available. 
 
 ### Discussion
+
+#### UNIX Sockets
+
+UNIX sockets have been used because the channel between mosh-server and moshd only needs to be local, and so there is no need to require any more resources from the TCP/IP stack. UNIX sockets can be bound to names in the local filesystem, and so easily allows an arbitrary number of moshd instance to be run.
+
+Using a SOCK_STREAM allows each of the mosh-server and moshd to detect that the other has shut down the channel. In particular, this allows moshd to destroy the Session Token associated with that mosh-server instance and recover resources allocated to that channel.
+
+There is also opportunity to try to communicate the destruction of the mosh-server to the mosh-client, but there is no guarantee that the mosh-client has TCP/IP connectivity at that time so there is no way to be sure that the mosh-client will receive the message. With this complication, it seems reasonable not to try to optimise this case, especially since this scenario already exists with a simple mosh-client and mosh-server configuration.
+
+#### Security
 
 No mention has been made of any additional encryption over above the currently supported functionality. The above design does not attempt to encrypt the channel between the mosh-client and moshd, nor to encrypt the channel between moshd and the mosh-server, relying only on the end-to-end secure channel between the mosh-client and mosh-server.
 
