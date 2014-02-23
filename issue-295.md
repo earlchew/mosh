@@ -38,11 +38,15 @@ Reference: https://github.com/keithw/mosh/issues/295
 #### Packet Forwarding
 
 * moshd shall listen for UDP packets on a single UDP port.
-* When moshd receives a packet on the public UDP port, moshd shall extract the Session Token and find the associated moshd session.
-* If moshd fails to find an associated moshd session, moshd shall drop the packet.
-* When moshd finds the associated moshd session, and when this is the first packet received from this source IP address and UDP port, moshd shall record this as the new mosh-client address.
-* moshd shall remove the Session Token and send the remainder of the packet via the associated SOCK_STREAM UNIX socket.
-* When moshd receives a packet from the SOCK_STREAM UNIX socket, moshd shall prepend the Session Token and send the resuting packet to the recorded mosh-client address, or drop the packet if no mosh-client address is available. 
+* When moshd receives a packet on the UDP port, moshd shall extract the Session Token and find the associated moshd session.
+* If moshd fails to find an associated moshd session for a packet received on the UDP port, moshd shall drop the packet.
+* When moshd finds the associated moshd session for a packet received on the UDP port, moshd shall remove the Session Token, prepend a Server Multiplex Header and send the remainder of the packet via the associated SOCK_STREAM UNIX socket.
+* When moshd receives a packet from the SOCK_STREAM UNIX socket, moshd shall extract the Client Multiplex Header, prepend the Session Token and send the resuting packet to the indicated mosh-client.
+
+#### Multiplex Headers
+
+* The Server Multiplex Header shall convey the following information to the mosh-server: mosh-client IP address and UDP port.
+* The Client Multiplex Header shall convey the following information to moshd: mosh-client IP address and UDP port.
 
 ### Discussion
 
