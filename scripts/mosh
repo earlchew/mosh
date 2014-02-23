@@ -278,12 +278,12 @@ $|=1;
 
     sub new($$)
     {
-        my $class    = shift;
-        my $fileName = shift;
-        my $self     = bless { }, $class;
+        my $class     = shift;
+        my $fileNames = shift;
+        my $self      = bless { }, $class;
 
         $self->_resetConfig();
-        $self->_readConfigFile($fileName);
+        $self->_readConfigFile(@{$fileNames}) if defined($fileNames);
 
         return $self;
     }
@@ -353,19 +353,22 @@ $|=1;
     sub _readConfigFile($$)
     {
         my $self      = shift;
-        my $fileName  = shift;
+        my @filePaths = @_;
 
-        if (defined($fileName) && $#{$fileName} >= 0) {
+        foreach my $filePath (@filePaths) {
+
             my $hostName  = '';
             my $lineNum   = 0;
+            my @fileName  = @{$filePath};
 
-            if (${$fileName}[0] eq '~')
+            if (substr($fileName[0], 0, 1) eq '$')
             {
-                defined(${$fileName}[0] = $ENV{"HOME"}) ||
-                    die "Cannot resolve HOME directory";
+                my $var = substr($fileName[0], 1);
+
+                defined($fileName[0] = $ENV{$var}) || next;
             }
 
-            my $configFileName = File::Spec->catfile(@{$fileName});
+            my $configFileName = File::Spec->catfile(@fileName);
             my $configFile;
 
             if ( ! open($configFile, "<", $configFileName))
@@ -385,6 +388,8 @@ $|=1;
                 }
 
                 close($configFile);
+
+                last;
             }
         }
     }
@@ -433,7 +438,9 @@ $|=1;
     }
 }
 
-my $configFile = ConfigFile->new([ '~', '.mosh', 'config' ]);
+my $configFile = ConfigFile->new([ [ '$HOME',           '.mosh', 'config' ],
+                                   [ '$XDG_CONFIG_HOME', 'mosh', 'config' ],
+                                   [ '$HOME', '.config', 'mosh', 'config' ] ]);
 
 my $client = undef;
 my $server = undef;
