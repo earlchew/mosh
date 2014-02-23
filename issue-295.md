@@ -1,9 +1,9 @@
-Design and Requirements for Session Multiplexing
-------------------------------------------------
+Mosh Session Multiplexing
+-------------------------
 
 Reference: https://github.com/keithw/mosh/issues/295
 
-### Goals
+### Design Goals
 
 * The existing mosh functionality shall be preserved.
 * Multiple mosh sessions for a single user shall be supported on a single external UDP port.
