@@ -19,7 +19,7 @@ Reference: https://github.com/keithw/mosh/issues/295
 * If mosh-server successfully connects to moshd and the mosh-client has sent `MOSH_PORT_MULTIPLEX`, the mosh-server shall operate in multiplex mode, otherwise the mosh-server shall operate in non-multiplex mode.
 * When the mosh-server operates in non-multiplex mode, the mosh-server shall operate in the existing manner.
 * When the mosh-server operates in multiplex mode, the mosh-server shall create a multiplexed port connection with moshd.
-* When the mosh-server receives the session connection parameters from moshd, the mosh-server will respond to the mosh-client with `MOSH MULTIPLEX-CONNECT port token key` instead of `MOSH CONNECT port key`.
+* When the mosh-server receives the session connection parameters from moshd, the mosh-server will respond to the mosh-client with `MOSH MULTIPLEX-CONNECT Port Session-Token Key` instead of `MOSH CONNECT Port Key`.
 * If the mosh-client receives `MOSH MULTIPLEX-CONNECT`, the mosh-client shall start a connection in multiplex-mode, otherwise if the mosh-client receives `MOSH CONNECT`, the mosh-client shall start a connection in non-multiplex mode.
 
 #### Multiplex Port Session
