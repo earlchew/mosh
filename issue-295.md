@@ -69,3 +69,7 @@ The mosh-client to moshd connection is no less secure than the current mosh-clie
 It is possible for Session Tokens to be extracted from packets in flight, and for a malicious agent to either masquerade as the real mosh-client and disrupt, or to perhaps attempt a man-in-the-middle maneuver. The exposure to either of these attacks is no greater than for the current mosh-client to mosh-server design because moshd simply forwards packets on to the designated mosh-server.
 
 It is possible to provide some additional mitigatation by encrypting the Session Token that is prepended to the in-flight packets between mosh-client and moshd. The main payload is already encrypted so there is nothing to be gained by doubly encrypting that data. Because the entire session establishment process overs over a secure ssh channel, a symmetric key encryption of the Session Token is sufficient.
+
+### Candidate Design
+
+![](https://raw2.github.com/earlchew/mosh/issues/295/dev/issue-295/moshd-overview.png)
