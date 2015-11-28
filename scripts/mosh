@@ -436,6 +436,8 @@ my %port_setting = (
 
 my $ssh = undef;
 
+my $forward_agent = 0;
+
 my $term_init = undef;
 
 my $help = undef;
@@ -466,6 +468,8 @@ qq{Usage: $0 [options] [--] [user@]host [command...]
         --ssh=COMMAND        ssh command to run when setting up session
                                 (example: "ssh -p 2222")
                                 (default: "ssh")
+
+-A      --forward-agent      enable ssh agent forwarding
 
         --no-init            do not send terminal initialization string
 
@@ -504,6 +508,8 @@ GetOptions( 'client=s' => \$client,
 	    '6' => sub { $family = 'inet6' },
 	    'p=s' => \$port_request,
 	    'ssh=s' => \$ssh,
+            'A' => \$forward_agent,
+            'forward-agent!' => \$forward_agent,
 	    'init!' => \$term_init,
 	    'help' => \$help,
 	    'version' => \$version,
@@ -696,6 +702,10 @@ if ( $pid == 0 ) { # child
 
   my @server = ( 'new' );
 
+  if ( $forward_agent ) {
+    push @server, ( '-A' );
+  }
+
   push @server, ( '-c', $colors );
 
   push @server, @bind_arguments;
@@ -759,6 +769,12 @@ if ( $pid == 0 ) { # child
 
   $port = $port - $port_setting{server_port} + $port_setting{firewall_port}
     if (defined $port_request);
+
+  my @client_av = ();
+  if ( $forward_agent ) {
+    push @client_av, ( '-A' );
+  }
+  push @client_av, ( $ip, $port );
 
   exec {$client} ("$client @cmdline |", $ip, $port);
 }
