@@ -72,4 +72,4 @@ It is possible to provide some additional mitigatation by encrypting the Session
 
 ### Candidate Design
 
-![](https://raw2.github.com/earlchew/mosh/issues/295/dev/issue-295/moshd-overview.png)
+![](https://github.com/earlchew/mosh/blob/issues/295/dev/issue-295/moshd-overview.png)
