@@ -758,6 +758,7 @@ void serve( int host_fd, Terminal::Complete &terminal, ServerConnection &network
       if ( time_since_remote_state > (AGENT_IDLE_TIMEOUT * 1000) || time_since_remote_state > 30000 ) {
 	network.oob()->close_sessions();
       }
+
       network.oob()->post_poll();
 
       network.tick();
