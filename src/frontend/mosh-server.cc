@@ -83,6 +83,7 @@
 #include "locale_utils.h"
 #include "pty_compat.h"
 #include "select.h"
+#include "agent.h"
 #include "timestamp.h"
 #include "fatal_assert.h"
 
@@ -98,11 +99,13 @@ static void serve( int host_fd,
 		   Terminal::Complete &terminal,
 		   ServerConnection &network,
 		   long network_timeout,
-		   long network_signaled_timeout );
+		   long network_signaled_timeout,
+		   Agent::ProxyAgent &agent );
 
 static int run_server( const char *desired_ip, const char *desired_port,
-		       const string &command_path, char *command_argv[],
-		       const int colors, unsigned int verbose, bool with_motd );
+		const string &command_path, char *command_argv[],
+		const int colors, unsigned int verbose, bool with_motd,
+		bool with_agent_fwd );
 
 using namespace std;
 
@@ -180,6 +183,7 @@ int main( int argc, char *argv[] )
   string command_path;
   char **command_argv = NULL;
   int colors = 0;
+  bool with_agent_fwd = false;
   unsigned int verbose = 0; /* don't close stdin/stdout/stderr */
   /* Will cause mosh-server not to correctly detach on old versions of sshd. */
   list<string> locale_vars;
@@ -208,7 +212,7 @@ int main( int argc, char *argv[] )
        && (strcmp( argv[ 1 ], "new" ) == 0) ) {
     /* new option syntax */
     int opt;
-    while ( (opt = getopt( argc - 1, argv + 1, "@:i:p:c:svl:" )) != -1 ) {
+    while ( (opt = getopt( argc - 1, argv + 1, "@:i:p:c:svl:A" )) != -1 ) {
       switch ( opt ) {
 	/*
 	 * This undocumented option does nothing but eat its argument.
@@ -220,6 +224,9 @@ int main( int argc, char *argv[] )
 	 */
       case '@':
 	break;
+      case 'A':
+	with_agent_fwd = true;
+        break;
       case 'i':
 	desired_ip = optarg;
 	break;
@@ -358,7 +365,7 @@ int main( int argc, char *argv[] )
   }
 
   try {
-    return run_server( desired_ip, desired_port, command_path, command_argv, colors, verbose, with_motd );
+    return run_server( desired_ip, desired_port, command_path, command_argv, colors, verbose, with_motd, with_agent_fwd );
   } catch ( const Network::NetworkException &e ) {
     fprintf( stderr, "Network exception: %s\n",
 	     e.what() );
@@ -372,7 +379,8 @@ int main( int argc, char *argv[] )
 
 static int run_server( const char *desired_ip, const char *desired_port,
 		       const string &command_path, char *command_argv[],
-		       const int colors, unsigned int verbose, bool with_motd ) {
+		       const int colors, unsigned int verbose, bool with_motd,
+		       bool with_agent_fwd ) {
   /* get network idle timeout */
   long network_timeout = 0;
   char *timeout_envar = getenv( "MOSH_SERVER_NETWORK_TMOUT" );
@@ -474,6 +482,13 @@ static int run_server( const char *desired_ip, const char *desired_port,
     _exit( 0 );
   }
 
+  /* initialize agent listener if requested */
+  Agent::ProxyAgent agent( true, ! with_agent_fwd );
+  if ( with_agent_fwd && (! agent.active()) ) {
+    fprintf( stderr, "Warning: Agent listener initialization failed. Disabling agent forwarding.\n" );
+    with_agent_fwd = false;
+  }
+
   int master;
 
   /* close file descriptors */
@@ -550,6 +565,14 @@ static int run_server( const char *desired_ip, const char *desired_port,
       exit( 1 );
     }
 
+    /* set SSH_AUTH_SOCK */
+    if ( agent.active() ) {
+      if ( setenv( "SSH_AUTH_SOCK", agent.listener_path().c_str(), true ) < 0 ) {
+	perror( "setenv" );
+	exit( 1 );
+      }
+    }
+
     /* ask ncurses to send UTF-8 instead of ISO 2022 for line-drawing chars */
     if ( setenv( "NCURSES_NO_UTF8_ACS", "1", true ) < 0 ) {
       perror( "setenv" );
@@ -613,7 +636,7 @@ static int run_server( const char *desired_ip, const char *desired_port,
 #endif
 
     try {
-      serve( master, terminal, *network, network_timeout, network_signaled_timeout );
+      serve( master, terminal, *network, network_timeout, network_signaled_timeout, agent );
     } catch ( const Network::NetworkException &e ) {
       fprintf( stderr, "Network exception: %s\n",
 	       e.what() );
@@ -637,7 +660,7 @@ static int run_server( const char *desired_ip, const char *desired_port,
   return 0;
 }
 
-static void serve( int host_fd, Terminal::Complete &terminal, ServerConnection &network, long network_timeout, long network_signaled_timeout )
+static void serve( int host_fd, Terminal::Complete &terminal, ServerConnection &network, long network_timeout, long network_signaled_timeout, Agent::ProxyAgent &agent )
 {
   /* scale timeouts */
   const uint64_t network_timeout_ms = static_cast<uint64_t>( network_timeout ) * 1000;
@@ -656,6 +679,8 @@ static void serve( int host_fd, Terminal::Complete &terminal, ServerConnection &
   Addr saved_addr;
   socklen_t saved_addr_len = 0;
   #endif
+
+  agent.attach_oob(network.oob());
 
   bool child_released = false;
 
@@ -696,6 +721,8 @@ static void serve( int host_fd, Terminal::Complete &terminal, ServerConnection &
       if ( !network.shutdown_in_progress() ) {
 	sel.add_fd( host_fd );
       }
+
+      network.oob()->pre_poll();
 
       int active_fds = sel.select( timeout );
       if ( active_fds < 0 ) {
@@ -806,6 +833,7 @@ static void serve( int host_fd, Terminal::Complete &terminal, ServerConnection &
         /* If the pty slave is closed, reading from the master can fail with
            EIO (see #264).  So we treat errors on read() like EOF. */
         if ( bytes_read <= 0 ) {
+	  network.oob()->shutdown();
 	  network.start_shutdown();
 	} else {
 	  terminal_to_host += terminal.act( string( buf, bytes_read ) );
@@ -837,6 +865,7 @@ static void serve( int host_fd, Terminal::Complete &terminal, ServerConnection &
       if ( sel.any_signal() || idle_shutdown ) {
 	/* shutdown signal */
 	if ( network.has_remote_addr() && (!network.shutdown_in_progress()) ) {
+	  network.oob()->shutdown();
 	  network.start_shutdown();
 	} else {
 	  break;
@@ -881,15 +910,26 @@ static void serve( int host_fd, Terminal::Complete &terminal, ServerConnection &
            && time_since_remote_state >= timeout_if_no_client ) {
         fprintf( stderr, "No connection within %llu seconds.\n",
                  static_cast<unsigned long long>( timeout_if_no_client / 1000 ) );
+	network.oob()->shutdown();
         break;
       }
 
+      if ( time_since_remote_state > (AGENT_IDLE_TIMEOUT * 1000) || time_since_remote_state > 30000 ) {
+	network.oob()->close_sessions();
+      }
+
+      network.oob()->post_poll();
+
       network.tick();
+
+      network.oob()->post_tick();
+
     } catch ( const Network::NetworkException &e ) {
       fprintf( stderr, "%s\n", e.what() );
       spin();
     } catch ( const Crypto::CryptoException &e ) {
       if ( e.fatal ) {
+	network.oob()->shutdown();
         throw;
       } else {
         fprintf( stderr, "Crypto exception: %s\n", e.what() );
