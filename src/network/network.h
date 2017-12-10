@@ -93,7 +93,8 @@ namespace Network {
 
   class Connection {
   private:
-    static const int DEFAULT_SEND_MTU = 1300;
+    /* https://github.com/mobile-shell/mosh/issues/950 */
+    static const int DEFAULT_SEND_MTU = 1024;
     static const uint64_t MIN_RTO = 50; /* ms */
     static const uint64_t MAX_RTO = 1000; /* ms */
 
