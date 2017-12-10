@@ -45,10 +45,9 @@ bool base64_decode( const char *b64, const size_t b64_len,
   fatal_assert( *raw_len == 16 );
 
   /* initialize input/output */
-  BIO_METHOD *b64_method = BIO_f_base64();
-  fatal_assert( b64_method );
+  fatal_assert( BIO_f_base64() );
 
-  BIO *b64_bio = BIO_new( b64_method );
+  BIO *b64_bio = BIO_new( BIO_f_base64() );
   fatal_assert( b64_bio );
 
   BIO_set_flags( b64_bio, BIO_FLAGS_BASE64_NO_NL );
@@ -98,11 +97,10 @@ void base64_encode( const char *raw, const size_t raw_len,
   fatal_assert( raw_len == 16 );
 
   /* initialize input/output */
-  BIO_METHOD *b64_method = BIO_f_base64(), *mem_method = BIO_s_mem();
-  fatal_assert( b64_method );
-  fatal_assert( mem_method );
+  fatal_assert( BIO_f_base64() );
+  fatal_assert( BIO_s_mem() );
 
-  BIO *b64_bio = BIO_new( b64_method ), *mem_bio = BIO_new( mem_method );
+  BIO *b64_bio = BIO_new( BIO_f_base64() ), *mem_bio = BIO_new( BIO_s_mem() );
   fatal_assert( b64_bio );
   fatal_assert( mem_bio );
 
