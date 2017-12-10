@@ -126,9 +126,10 @@ namespace Network {
      *
      * We may have to implement ICMP-less PMTUD (RFC 4821) eventually.
      */
-    static const int DEFAULT_IPV4_MTU = 1280;
+    /* https://github.com/mobile-shell/mosh/issues/950 */
+    static const int DEFAULT_IPV4_MTU = 1024;
     /* IPv6 MTU. Use the guaranteed minimum to avoid fragmentation. */
-    static const int DEFAULT_IPV6_MTU = 1280;
+    static const int DEFAULT_IPV6_MTU = 1024;
 
     static const uint64_t MIN_RTO = 50; /* ms */
     static const uint64_t MAX_RTO = 1000; /* ms */
