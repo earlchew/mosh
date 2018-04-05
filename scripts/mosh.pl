@@ -298,12 +298,12 @@ if ( ! defined $fake_proxy ) {
   defined( my $pid = fork ) or die "$0: fork: $!\n";
   if ( $pid == 0 ) {
     close STDIN;
-    cat $sock, \*STDOUT; $sock->shutdown( 0 );
+    cat( $sock, \*STDOUT ); $sock->shutdown( 0 );
     _exit 0;
   }
   $SIG{ 'HUP' } = 'IGNORE';
   close STDOUT;
-  cat \*STDIN, $sock; $sock->shutdown( 1 );
+  cat( \*STDIN, $sock ); $sock->shutdown( 1 );
   close STDIN;
   waitpid $pid, 0;
   exit;
