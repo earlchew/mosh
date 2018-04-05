@@ -463,6 +463,8 @@ my @ssh = undef;
 
 my $term_init = undef;
 
+my $forward_agent = 0;
+
 my $localhost = undef;
 
 my $ssh_pty = undef;
@@ -500,6 +502,8 @@ qq{Usage: $0 [options] [--] [user@]host [command...]
         --ssh=COMMAND        ssh command to run when setting up session
                                 (example: "ssh -p 2222")
                                 (default: "ssh")
+
+-A      --forward-agent      enable ssh agent forwarding
 
         --no-ssh-pty         do not allocate a pseudo tty on ssh connection
 
@@ -546,6 +550,8 @@ GetOptions( 'client=s' => \$client,
 	    '6' => sub { $family = 'inet6' },
 	    'p=s' => \$port_request,
 	    'ssh=s' => sub { @ssh = shellwords($_[1]); },
+            'A' => \$forward_agent,
+            'forward-agent!' => \$forward_agent,
 	    'ssh-pty!' => \$ssh_pty,
 	    'init!' => \$term_init,
 	    'local' => \$localhost,
@@ -839,6 +845,10 @@ if ( $pid == 0 ) { # child
   }
   my @server = ( 'new' );
 
+  if ( $forward_agent ) {
+    push @server, ( '-A' );
+  }
+
   push @server, ( '-c', $colors );
 
   push @server, @bind_arguments;
@@ -929,7 +939,13 @@ if ( $pid == 0 ) { # child
   $port = $port - $port_setting{server_port} + $port_setting{firewall_port}
     if (defined $port_request);
 
-  exec {$client} ("$client", "-# @cmdline |", $ip, $port);
+   my @client_av = ();
+   if ( $forward_agent ) {
+     push @client_av, ( '-A' );
+   }
+   push @client_av, ( $ip, $port );
+
+   exec {$client} ("$client", "-# @cmdline |",  @client_av);
 }
 
 sub shell_quote { join ' ', map {(my $a = $_) =~ s/'/'\\''/g; "'$a'"} @_ }
