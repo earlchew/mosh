@@ -568,6 +568,60 @@ if ( defined $version ) {
     exit;
 }
 
+if ( defined $fake_proxy ) {
+  my ( $host, $port ) = @ARGV;
+
+  my @res = resolvename( $host, $port, $family );
+
+  # Now try and connect to something.
+  my $err;
+  my $sock;
+  my $addr_string;
+  my $service;
+  for my $ai ( @res ) {
+    ( $err, $addr_string, $service ) = getnameinfo( $ai->{addr}, NI_NUMERICHOST );
+    next if $err;
+    if ( $sock = IO::Socket->new( Domain => $ai->{family},
+				  Family => $ai->{family},
+				  PeerHost => $addr_string,
+				  PeerPort => $port,
+				  Proto => 'tcp' )) {
+      print STDERR 'MOSH IP ', $addr_string, "\n";
+      last;
+    } else {
+      $err = $@;
+    }
+  }
+  die "$0: Could not connect to ${host}, last tried ${addr_string}: ${err}\n" if !$sock;
+
+  # Act like netcat
+  binmode($sock);
+  binmode(STDIN);
+  binmode(STDOUT);
+
+  sub cat {
+    my ( $from, $to ) = @_;
+    while ( my $n = $from->sysread( my $buf, 4096 ) ) {
+      next if ( $n == -1 && $! == EINTR );
+      $n >= 0 or last;
+      $to->write( $buf ) or last;
+    }
+  }
+
+  defined( my $pid = fork ) or die "$0: fork: $!\n";
+  if ( $pid == 0 ) {
+    close STDIN;
+    cat( $sock, \*STDOUT ); $sock->shutdown( 0 );
+    _exit 0;
+  }
+  $SIG{ 'HUP' } = 'IGNORE';
+  close STDOUT;
+  cat( \*STDIN, $sock ); $sock->shutdown( 1 );
+  close STDIN;
+  waitpid $pid, 0;
+  exit;
+}
+
 if ( defined $predict ) {
   predict_check( $predict, 0 );
 } elsif ( defined $ENV{ 'MOSH_PREDICTION_DISPLAY' } ) {
@@ -638,7 +692,7 @@ my $userhost;
 my @command;
 my @bind_arguments;
 
-if ( ! defined $fake_proxy ) {
+{
   if ( scalar @ARGV < 1 ) {
     die $usage;
   }
@@ -655,58 +709,6 @@ if ( ! defined $fake_proxy ) {
   } else {
     push @bind_arguments, ('-i', "$bind_ip");
   }
-} else {
-  my ( $host, $port ) = @ARGV;
-
-  my @res = resolvename( $host, $port, $family );
-
-  # Now try and connect to something.
-  my $err;
-  my $sock;
-  my $addr_string;
-  my $service;
-  for my $ai ( @res ) {
-    ( $err, $addr_string, $service ) = getnameinfo( $ai->{addr}, NI_NUMERICHOST );
-    next if $err;
-    if ( $sock = IO::Socket->new( Domain => $ai->{family},
-				  Family => $ai->{family},
-				  PeerHost => $addr_string,
-				  PeerPort => $port,
-				  Proto => 'tcp' )) {
-      print STDERR 'MOSH IP ', $addr_string, "\n";
-      last;
-    } else {
-      $err = $@;
-    }
-  }
-  die "$0: Could not connect to ${host}, last tried ${addr_string}: ${err}\n" if !$sock;
-
-  # Act like netcat
-  binmode($sock);
-  binmode(STDIN);
-  binmode(STDOUT);
-
-  sub cat {
-    my ( $from, $to ) = @_;
-    while ( my $n = $from->sysread( my $buf, 4096 ) ) {
-      next if ( $n == -1 && $! == EINTR );
-      $n >= 0 or last;
-      $to->write( $buf ) or last;
-    }
-  }
-
-  defined( my $pid = fork ) or die "$0: fork: $!\n";
-  if ( $pid == 0 ) {
-    close STDIN;
-    cat( $sock, \*STDOUT ); $sock->shutdown( 0 );
-    _exit 0;
-  }
-  $SIG{ 'HUP' } = 'IGNORE';
-  close STDOUT;
-  cat( \*STDIN, $sock ); $sock->shutdown( 1 );
-  close STDIN;
-  waitpid $pid, 0;
-  exit;
 }
 
 # Count colors
