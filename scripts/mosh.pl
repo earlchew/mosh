@@ -647,13 +647,14 @@ my @command = @ARGV;
 my %hostconfig = %{$configFile->lookupHost($host)};
 
 my %configFileOptions = (
-    'Client'     => \$client,
-    'Server'     => \$server,
-    'Predict'    => \$predict,
-    'Port'       => \$port_request,
-    'Family'     => \$family,
-    'Ssh'        => \@ssh,
-    'TermInit=?' => \$term_init );
+    'Client'         => \$client,
+    'Server'         => \$server,
+    'Predict'        => \$predict,
+    'Port'           => \$port_request,
+    'Family'         => \$family,
+    'Ssh'            => \@ssh,
+    'ForwardAgent=?' => \$forward_agent,
+    'TermInit=?'     => \$term_init );
 
 foreach my $key (keys %configFileOptions) {
   my @words = split(/=/, $key);
