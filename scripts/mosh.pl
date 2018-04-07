@@ -465,7 +465,7 @@ my @ssh = ();
 
 my $term_init = undef;
 
-my $forward_agent = 0;
+my $forward_agent = undef;
 
 my $localhost = undef;
 
@@ -695,6 +695,7 @@ $client = 'mosh-client' unless defined($client);
 $server = 'mosh-server' unless defined($server);
 @ssh = ('ssh') unless @ssh;
 $term_init = 1 unless defined($term_init);
+$forward_agent = 0 unless defined($forward_agent);
 $ssh_pty = 1 unless defined($ssh_pty);
 $family = 'prefer-inet' unless defined($family);
 $use_remote_ip = 'proxy' unless defined($use_remote_ip);
